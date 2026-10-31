@@ -1,0 +1,7 @@
+# Copy to signing.properties (gitignored), or set SENTINEL_SIGNING_PROPERTIES
+# to a properties file outside the repository. Never commit real credentials.
+# Use forward slashes in the keystore path on Windows.
+storeFile=/absolute/path/to/sentinel-release.p12
+storePassword=replace-with-your-keystore-password
+keyAlias=sentinel
+keyPassword=replace-with-your-key-password

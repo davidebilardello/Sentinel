@@ -1,0 +1,428 @@
+{
+  "productId": "ivybh960",
+  "schema": [
+    {
+      "id": 1,
+      "code": "blelock_switch",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": 2,
+      "code": "speed",
+      "mode": "ro",
+      "property": {
+        "unit": "km/h",
+        "min": 0,
+        "max": 2000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 3,
+      "code": "battery_percentage",
+      "mode": "ro",
+      "property": {
+        "unit": "%",
+        "min": 0,
+        "max": 100,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 4,
+      "code": "endurance_mileage",
+      "mode": "ro",
+      "property": {
+        "unit": "KM",
+        "min": 0,
+        "max": 2000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 5,
+      "code": "mileage_once",
+      "mode": "ro",
+      "property": {
+        "unit": "KM",
+        "min": 0,
+        "max": 2000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 6,
+      "code": "ridetime_once",
+      "mode": "ro",
+      "property": {
+        "unit": "s",
+        "min": 0,
+        "max": 86400,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 7,
+      "code": "avgspeed_once",
+      "mode": "ro",
+      "property": {
+        "unit": "km/h",
+        "min": 0,
+        "max": 2000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 8,
+      "code": "headlight_switch",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": 11,
+      "code": "unit_set",
+      "mode": "rw",
+      "property": {
+        "range": [
+          "km",
+          "mile"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 12,
+      "code": "mileage_total",
+      "mode": "ro",
+      "property": {
+        "unit": "KM",
+        "min": 0,
+        "max": 5000000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 13,
+      "code": "cruise_switch",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": 15,
+      "code": "mode",
+      "mode": "rw",
+      "property": {
+        "range": [
+          "walk",
+          "eco",
+          "normal",
+          "sport"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 16,
+      "code": "start_mode",
+      "mode": "rw",
+      "property": {
+        "range": [
+          "zero_start",
+          "not_zero_start"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 17,
+      "code": "energy_recovery_level",
+      "mode": "rw",
+      "property": {
+        "range": [
+          "low",
+          "middle",
+          "high"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 18,
+      "code": "temp_current",
+      "mode": "ro",
+      "property": {
+        "unit": "℃",
+        "min": 0,
+        "max": 1000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 19,
+      "code": "battery_status",
+      "mode": "ro",
+      "property": {
+        "range": [
+          "normal"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 20,
+      "code": "voltage_current",
+      "mode": "ro",
+      "property": {
+        "unit": "V",
+        "min": 0,
+        "max": 100000,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 21,
+      "code": "cur_current",
+      "mode": "ro",
+      "property": {
+        "unit": "A",
+        "min": 0,
+        "max": 10000,
+        "scale": 2,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 22,
+      "code": "power_current",
+      "mode": "ro",
+      "property": {
+        "unit": "W",
+        "min": 0,
+        "max": 10000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 23,
+      "code": "battery_temp_current",
+      "mode": "ro",
+      "property": {
+        "unit": "℃",
+        "min": 0,
+        "max": 1000,
+        "scale": 1,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 25,
+      "code": "status",
+      "mode": "ro",
+      "property": {
+        "range": [
+          "normal",
+          "Communicate_Fault",
+          "Hall_Fault",
+          "High_Temperature_Protection",
+          "Controller_Fault",
+          "Low_Voltage_Protection",
+          "Block_Protection",
+          "Accelerator_Fault",
+          "Overcurrent_Protection"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 26,
+      "code": "fault_detection",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": 29,
+      "code": "bright_value",
+      "mode": "rw",
+      "property": {
+        "min": 10,
+        "max": 1000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 30,
+      "code": "temp_value",
+      "mode": "rw",
+      "property": {
+        "min": 0,
+        "max": 1000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 31,
+      "code": "work_mode",
+      "mode": "rw",
+      "property": {
+        "range": [
+          "white",
+          "colour",
+          "scene",
+          "music"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "id": 32,
+      "code": "colour_data",
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      }
+    },
+    {
+      "id": 33,
+      "code": "scene_data",
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      }
+    },
+    {
+      "id": 34,
+      "code": "music_data",
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      }
+    },
+    {
+      "id": 35,
+      "code": "mic_music_data",
+      "mode": "rw",
+      "property": {
+        "type": "string",
+        "maxlen": 255
+      }
+    },
+    {
+      "id": 36,
+      "code": "battery_cycle_times",
+      "mode": "ro",
+      "property": {
+        "min": 0,
+        "max": 1000,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 37,
+      "code": "battery_lock",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": 38,
+      "code": "phone_discon_alarm",
+      "mode": "rw",
+      "property": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": 101,
+      "code": "speed_limit_1",
+      "mode": "rw",
+      "property": {
+        "unit": "km/h",
+        "min": 5,
+        "max": 25,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 102,
+      "code": "speed_limit_2",
+      "mode": "rw",
+      "property": {
+        "unit": "km/h",
+        "min": 10,
+        "max": 35,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 103,
+      "code": "speed_limit_3",
+      "mode": "rw",
+      "property": {
+        "unit": "km/h",
+        "min": 15,
+        "max": 99,
+        "scale": 0,
+        "step": 1,
+        "type": "value"
+      }
+    },
+    {
+      "id": 104,
+      "code": "autopowerofftime",
+      "mode": "rw",
+      "property": {
+        "unit": "MIN",
+        "min": 5,
+        "max": 90,
+        "scale": 0,
+        "step": 5,
+        "type": "value"
+      }
+    }
+  ]
+}
