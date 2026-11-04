@@ -89,7 +89,8 @@ class TripTrackingService : Service(), LocationListener {
         val fix = GpsFix(location.latitude, location.longitude, location.time, location.elapsedRealtimeNanos / 1000000,
             if (location.hasAccuracy()) location.accuracy else Float.POSITIVE_INFINITY,
             if (location.hasSpeed()) location.speed else null,
-            if (location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond else null)
+            if (location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond else null,
+            store.scooterSpeedAt(location.elapsedRealtimeNanos / 1000000))
         scope.launch {
             if (shuttingDown) return@launch
             try {

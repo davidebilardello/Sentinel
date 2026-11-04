@@ -19,7 +19,7 @@ data class TripSummary(val id: Long, val startedAt: Long, val endedAt: Long?, va
 data class RecordingStatus(val monitoring: Boolean = false, val recording: Boolean = false,
     val message: String = appText(R.string.connect_your_scooter_to_record_trips_automatically), val accuracyMeters: Float? = null)
 
-class TripStore(private val context: Context, databaseName: String = "trips.db") : SQLiteOpenHelper(context, databaseName, null, 3) {
+class TripStore(private val context: Context, databaseName: String = "trips.db") : SQLiteOpenHelper(context, databaseName, null, 4) {
     private val preferences = context.getSharedPreferences("trips", Context.MODE_PRIVATE)
     val enabled = MutableStateFlow(preferences.getBoolean("automatic", true))
     val scooterConnected = MutableStateFlow(false)
@@ -27,7 +27,16 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
     fun setConnectedScooter(scooter: SavedScooter?) {
         connectedScooter.value = scooter?.let { TripScooter(it.syncId ?: "local:${it.id}",it.name.filterNot(Char::isISOControl).take(80).ifBlank { it.family.title }) }
         scooterConnected.value = scooter != null
+        if (scooter == null) latestScooterSpeed = null
     }
+    private class ScooterSpeed(val kmh: Float, val receivedAt: Long)
+    @Volatile private var latestScooterSpeed: ScooterSpeed? = null
+    /** Called for every telemetry packet; [receivedAt] uses SystemClock.elapsedRealtime(). */
+    fun reportScooterSpeed(kmh: Float, receivedAt: Long) {
+        latestScooterSpeed = if (kmh.isFinite() && kmh in 0f..TripSpeed.MAX_PLAUSIBLE_KMH.toFloat()) ScooterSpeed(kmh, receivedAt) else null
+    }
+    /** Scooter speed at a GPS fix time (elapsedRealtime), only when the reading is recent enough to belong to that fix. */
+    fun scooterSpeedAt(elapsed: Long): Float? = latestScooterSpeed?.takeIf { kotlin.math.abs(elapsed - it.receivedAt) <= ScooterProtocol.FRESH_MS }?.kmh
     val status = MutableStateFlow(RecordingStatus())
     private val history = MutableStateFlow<List<TripSummary>>(emptyList())
     val trips = history.asStateFlow()
@@ -43,12 +52,12 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE trips (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at INTEGER NOT NULL, ended_at INTEGER, last_point_at INTEGER NOT NULL, meters REAL NOT NULL, point_count INTEGER NOT NULL, interrupted INTEGER NOT NULL DEFAULT 0, sync_id TEXT, modified_at INTEGER NOT NULL DEFAULT 0, scooter_id TEXT, scooter_name TEXT)")
-        db.execSQL("CREATE TABLE points (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE, latitude REAL NOT NULL, longitude REAL NOT NULL, time INTEGER NOT NULL, accuracy REAL NOT NULL, segment INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE points (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE, latitude REAL NOT NULL, longitude REAL NOT NULL, time INTEGER NOT NULL, accuracy REAL NOT NULL, segment INTEGER NOT NULL, speed REAL)")
         db.execSQL("CREATE INDEX points_trip ON points(trip_id, id)")
         createSyncTables(db)
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        check(oldVersion in 1..2 && newVersion == 3)
+        check(oldVersion in 1..3 && newVersion == 4)
         if(oldVersion < 2) {
             db.execSQL("ALTER TABLE trips ADD COLUMN sync_id TEXT")
             db.execSQL("ALTER TABLE trips ADD COLUMN modified_at INTEGER NOT NULL DEFAULT 0")
@@ -57,8 +66,11 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
             }
             createSyncTables(db)
         }
-        db.execSQL("ALTER TABLE trips ADD COLUMN scooter_id TEXT")
-        db.execSQL("ALTER TABLE trips ADD COLUMN scooter_name TEXT")
+        if(oldVersion < 3) {
+            db.execSQL("ALTER TABLE trips ADD COLUMN scooter_id TEXT")
+            db.execSQL("ALTER TABLE trips ADD COLUMN scooter_name TEXT")
+        }
+        db.execSQL("ALTER TABLE points ADD COLUMN speed REAL")
     }
     private fun createSyncTables(db: SQLiteDatabase) {
         db.execSQL("CREATE UNIQUE INDEX trips_sync_id ON trips(sync_id)")
@@ -112,6 +124,7 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
         db.insertOrThrow("points", null, ContentValues().apply {
             put("trip_id", tripId); put("latitude", point.latitude); put("longitude", point.longitude)
             put("time", point.time); put("accuracy", point.accuracy); put("segment", point.segment)
+            put("speed", point.speedKmh?.takeIf { it.isFinite() && it in 0f..TripSpeed.MAX_PLAUSIBLE_KMH.toFloat() })
         })
     }
 
@@ -128,8 +141,8 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
 
     @Synchronized fun points(id: Long): List<TrackPoint> {
         val result = mutableListOf<TrackPoint>()
-        readableDatabase.rawQuery("SELECT latitude, longitude, time, accuracy, segment FROM points WHERE trip_id = ? ORDER BY id", arrayOf(id.toString())).use { c ->
-            while (c.moveToNext()) result += TrackPoint(c.getDouble(0), c.getDouble(1), c.getLong(2), c.getFloat(3), c.getInt(4))
+        readableDatabase.rawQuery("SELECT latitude, longitude, time, accuracy, segment, speed FROM points WHERE trip_id = ? ORDER BY id", arrayOf(id.toString())).use { c ->
+            while (c.moveToNext()) result += TrackPoint(c.getDouble(0), c.getDouble(1), c.getLong(2), c.getFloat(3), c.getInt(4), if (c.isNull(5)) null else c.getFloat(5))
         }
         return result
     }
@@ -155,9 +168,12 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
         val records = mutableListOf<SyncRecord>()
         readableDatabase.rawQuery("SELECT id, sync_id, modified_at, started_at, ended_at, last_point_at, meters, interrupted, scooter_id, scooter_name FROM trips WHERE ended_at IS NOT NULL",null).use { cursor ->
             while(cursor.moveToNext()) {
-                val route = JSONArray().apply { points(cursor.getLong(0)).forEach { p -> put(JSONArray().put(p.latitude).put(p.longitude).put(p.time).put(p.accuracy.toDouble()).put(p.segment)) } }
+                val points = points(cursor.getLong(0))
+                val route = JSONArray().apply { points.forEach { p -> put(JSONArray().put(p.latitude).put(p.longitude).put(p.time).put(p.accuracy.toDouble()).put(p.segment)) } }
                 val data = JSONObject().put("started",cursor.getLong(3)).put("ended",cursor.getLong(4))
                     .put("last",cursor.getLong(5)).put("meters",cursor.getDouble(6)).put("interrupted",cursor.getInt(7) != 0).put("points",route)
+                // Separate optional array so older app versions (which require 5 values per point) keep accepting the record.
+                if (points.any { it.speedKmh != null }) data.put("speeds",JSONArray().apply { points.forEach { put(it.speedKmh?.toDouble() ?: JSONObject.NULL) } })
                 if(!cursor.isNull(8)) data.put("scooter",JSONObject().put("id",cursor.getString(8)).put("name",cursor.getString(9)))
                 records += SyncRecord("trip",cursor.getString(1),cursor.getLong(2),false,data)
             }
@@ -187,6 +203,10 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
                     require(p.getDouble(3).let { it.isFinite() && it in 0.0..10_000.0 } && p.getInt(4) in 0..1_000_000)
                 }
                 require(previous == data.getLong("last"))
+                data.optJSONArray("speeds")?.let { speeds ->
+                    require(speeds.length() == array.length())
+                    for(i in 0 until speeds.length()) require(speeds.isNull(i) || speeds.getDouble(i).let { it.isFinite() && it in 0.0..TripSpeed.MAX_PLAUSIBLE_KMH })
+                }
             }
         }
     }
@@ -209,7 +229,7 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
                     localId?.let { db.delete("trips","id = ?",arrayOf(it.toString())) }
                     db.insertWithOnConflict("sync_deleted",null,ContentValues().apply { put("sync_id",record.id); put("modified_at",record.modified) },SQLiteDatabase.CONFLICT_REPLACE)
                 } else {
-                    val d = record.data; val route = d.getJSONArray("points")
+                    val d = record.data; val route = d.getJSONArray("points"); val speeds = d.optJSONArray("speeds")
                     val values = ContentValues().apply {
                         put("sync_id",record.id); put("modified_at",record.modified); put("started_at",d.getLong("started")); put("ended_at",d.getLong("ended"))
                         put("last_point_at",d.getLong("last")); put("meters",d.getDouble("meters")); put("point_count",route.length()); put("interrupted",if(d.getBoolean("interrupted")) 1 else 0)
@@ -218,7 +238,8 @@ class TripStore(private val context: Context, databaseName: String = "trips.db")
                     }
                     val id = localId?.also { db.update("trips",values,"id = ?",arrayOf(it.toString())); db.delete("points","trip_id = ?",arrayOf(it.toString())) }
                         ?: db.insertOrThrow("trips",null,values)
-                    for(i in 0 until route.length()) { val p = route.getJSONArray(i); insertPoint(db,id,TrackPoint(p.getDouble(0),p.getDouble(1),p.getLong(2),p.getDouble(3).toFloat(),p.getInt(4))) }
+                    for(i in 0 until route.length()) { val p = route.getJSONArray(i); insertPoint(db,id,TrackPoint(p.getDouble(0),p.getDouble(1),p.getLong(2),p.getDouble(3).toFloat(),p.getInt(4),
+                        speeds?.takeUnless { it.isNull(i) }?.getDouble(i)?.toFloat())) }
                     db.delete("sync_deleted","sync_id = ?",arrayOf(record.id))
                 }
             }

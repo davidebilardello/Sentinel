@@ -518,4 +518,11 @@
     <string name="settings_confirmed_by_vehicle">Le impostazioni seguono lo stato confermato dal monopattino.</string>
     <string name="selected_option">Selezionata</string>
     <string name="unselected_option">Non selezionata</string>
+    <string name="speed_section">Velocità</string>
+    <string name="max_speed">VELOCITÀ MAX</string>
+    <string name="moving_average_speed">MEDIA IN MOVIMENTO</string>
+    <string name="speed_from_scooter">Velocità rilevata dal monopattino durante la corsa.</string>
+    <string name="speed_from_gps">Velocità stimata dal GPS: per questa corsa non ci sono dati del monopattino.</string>
+    <string name="speed_chart_hint">Trascina sul grafico per leggere la velocità in ogni momento.</string>
+    <string name="speed_chart_description">Velocità nel tempo, massima %1$s km/h</string>
 </resources>

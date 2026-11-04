@@ -3,8 +3,9 @@ package it.bilar.sentinel
 import kotlin.math.*
 
 data class GpsFix(val latitude: Double, val longitude: Double, val time: Long, val elapsed: Long,
-    val accuracy: Float, val speedMps: Float?, val speedAccuracy: Float? = null)
-data class TrackPoint(val latitude: Double, val longitude: Double, val time: Long, val accuracy: Float, val segment: Int = 0)
+    val accuracy: Float, val speedMps: Float?, val speedAccuracy: Float? = null, val scooterKmh: Float? = null)
+/** [speedKmh] is the speed reported by the scooter when the point was recorded, null when unavailable. */
+data class TrackPoint(val latitude: Double, val longitude: Double, val time: Long, val accuracy: Float, val segment: Int = 0, val speedKmh: Float? = null)
 sealed interface TripEvent {
     data class Started(val points: List<TrackPoint>) : TripEvent
     data class Point(val point: TrackPoint, val meters: Double) : TripEvent
@@ -44,7 +45,7 @@ class AutoTripDetector {
             !fix.accuracy.isFinite() || fix.accuracy !in 0f..MAX_ACCURACY_METERS || now - fix.elapsed !in 0..MAX_FIX_AGE_MS) return emptyList()
         val prev = previous
         if (prev != null && fix.elapsed <= prev.elapsed) return emptyList()
-        val point = TrackPoint(fix.latitude, fix.longitude, fix.time, fix.accuracy, segment)
+        val point = TrackPoint(fix.latitude, fix.longitude, fix.time, fix.accuracy, segment, fix.scooterKmh)
         val delta = prev?.let { distance(TrackPoint(it.latitude, it.longitude, it.time, it.accuracy), point) } ?: 0.0
         val dt = prev?.let { (fix.elapsed - it.elapsed) / 1000.0 } ?: 0.0
         if (dt > 0 && dt <= 30 && delta / dt > 22 && delta > max(40.0, (fix.accuracy + (prev?.accuracy ?: 0f)).toDouble())) return emptyList()
@@ -76,7 +77,7 @@ class AutoTripDetector {
             if (candidate.isEmpty()) {
                 candidateSince = fix.elapsed
                 val seed = if (reliableSpeed) prev else anchor
-                if (seed != null && fix.elapsed - seed.elapsed < 10000) candidate += TrackPoint(seed.latitude, seed.longitude, seed.time, seed.accuracy)
+                if (seed != null && fix.elapsed - seed.elapsed < 10000) candidate += TrackPoint(seed.latitude, seed.longitude, seed.time, seed.accuracy, speedKmh = seed.scooterKmh)
             }
             if (candidate.isEmpty() || distance(candidate.last(), point) >= 2) candidate += point
             if (fix.elapsed - candidateSince >= START_TIME_MS && distance(candidate.first(), point) >= START_METERS) {

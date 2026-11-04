@@ -22,7 +22,7 @@ internal data class SyncRecord(val kind: String, val id: String, val modified: L
             return (0 until array.length()).map { parse(array.getJSONObject(it)) }.also { require(it.map(SyncRecord::key).distinct().size == it.size) }
         }
         fun merge(records: Iterable<SyncRecord>): List<SyncRecord> = records.groupBy { it.key }.values.map { versions ->
-            versions.maxWith(compareBy<SyncRecord> { it.modified }.thenBy { it.deleted }.thenBy { fingerprint(it.data) })
+            versions.maxWith(compareBy<SyncRecord> { it.modified }.thenBy { it.deleted }.thenBy { it.data.has("speeds") }.thenBy { fingerprint(it.data) })
         }
         private fun fingerprint(value: Any?): String {
             fun canonical(node: Any?): String = when(node) {

@@ -189,7 +189,9 @@ fun TripsPanel(model: TripsViewModel, demo: Boolean, onPermission: () -> Unit) {
                 if(!demo) Text(selected.scooter?.name ?: appText(R.string.unassigned_scooter),color = TripMuted,fontSize = 12.sp)
                 Text("${tripKm(selected.meters)} km · ${tripDuration(selected.durationMillis)}", color = TripMuted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
                 val route = if (demo) DemoTripModena.pointsFor(selected) else if (selectedId == selected.id) savedRoute else emptyList()
-                if (route.size >= 2) TripMap(selected.id, route) else Text(appText(R.string.loading_route), color = TripMuted, fontSize = 12.sp)
+                val speedProfile = remember(route) { TripSpeed.profile(route) }
+                if (route.size >= 2) TripMap(selected.id, route, speedProfile?.pointSpeeds) else Text(appText(R.string.loading_route), color = TripMuted, fontSize = 12.sp)
+                if (route.size >= 2) speedProfile?.let { TripSpeedSection(route, it) }
                 if (selected.interrupted) Text(appText(R.string.trip_recovered_after_the_app_was_interrupted), color = TripMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     if (!demo && selected.endedAt != null) TextButton(onClick = { deleting = selected }) { Text(appText(R.string.delete), color = Color(0xFFFF9E83)) }

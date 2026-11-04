@@ -518,4 +518,11 @@
     <string name="settings_confirmed_by_vehicle">Settings follow the state confirmed by your scooter.</string>
     <string name="selected_option">Selected</string>
     <string name="unselected_option">Not selected</string>
+    <string name="speed_section">Speed</string>
+    <string name="max_speed">MAX SPEED</string>
+    <string name="moving_average_speed">AVERAGE IN MOTION</string>
+    <string name="speed_from_scooter">Speed measured by the scooter during the ride.</string>
+    <string name="speed_from_gps">Speed estimated from GPS: there is no scooter data for this trip.</string>
+    <string name="speed_chart_hint">Drag across the chart to read the speed at each moment.</string>
+    <string name="speed_chart_description">Speed over time, maximum %1$s km/h</string>
 </resources>

@@ -26,13 +26,14 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.*
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.sources.GeoJsonSource
 
 @Composable
-fun TripMap(tripId: Long, points: List<TrackPoint>) {
+fun TripMap(tripId: Long, points: List<TrackPoint>, speeds: List<Double?>? = null) {
     val accentHex = "#%06X".format(MaterialTheme.colorScheme.primary.toArgb() and 0xFFFFFF)
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -59,8 +60,8 @@ fun TripMap(tripId: Long, points: List<TrackPoint>) {
                 loadedMap.setStyle(Style.Builder().fromUri("https://tiles.openfreemap.org/styles/dark")) { style ->
                     if (!alive) return@setStyle
                     style.addSource(GeoJsonSource("route", emptyFeatures()))
-                    style.addLayer(LineLayer("route-halo", "route").withProperties(lineColor(accentHex), lineWidth(12f), lineOpacity(.18f), lineCap("round"), lineJoin("round")))
-                    style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(accentHex), lineWidth(5f), lineCap("round"), lineJoin("round")))
+                    style.addLayer(LineLayer("route-halo", "route").withProperties(lineColor("#05080B"), lineWidth(10f), lineOpacity(.55f), lineCap("round"), lineJoin("round")))
+                    style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(Expression.get("color")), lineWidth(5f), lineCap("round"), lineJoin("round")))
                     for ((name, color) in listOf("start" to accentHex, "finish" to "#F2F4F0")) {
                         style.addSource(GeoJsonSource(name, emptyFeatures()))
                         style.addLayer(CircleLayer("$name-dot", name).withProperties(circleRadius(6f), circleColor(color), circleStrokeColor("#10151A"), circleStrokeWidth(2f)))
@@ -86,13 +87,11 @@ fun TripMap(tripId: Long, points: List<TrackPoint>) {
         }
     }
     LaunchedEffect(loadedStyle, accentHex) {
-        loadedStyle?.getLayerAs<LineLayer>("route-halo")?.setProperties(lineColor(accentHex))
-        loadedStyle?.getLayerAs<LineLayer>("route-line")?.setProperties(lineColor(accentHex))
         loadedStyle?.getLayerAs<CircleLayer>("start-dot")?.setProperties(circleColor(accentHex))
     }
-    LaunchedEffect(loadedStyle, tripId, points) {
+    LaunchedEffect(loadedStyle, tripId, points, speeds, accentHex) {
         val style = loadedStyle ?: return@LaunchedEffect
-        style.getSourceAs<GeoJsonSource>("route")?.setGeoJson(routeFeatures(points))
+        style.getSourceAs<GeoJsonSource>("route")?.setGeoJson(routeFeatures(points, speeds, accentHex))
         style.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointFeature(points.firstOrNull()))
         style.getSourceAs<GeoJsonSource>("finish")?.setGeoJson(pointFeature(points.lastOrNull()))
         if (points.isNotEmpty() && fittedTrip != tripId) {
@@ -116,18 +115,31 @@ fun TripMap(tripId: Long, points: List<TrackPoint>) {
 }
 
 private fun emptyFeatures() = """{"type":"FeatureCollection","features":[]}"""
-private fun feature(geometry: JSONObject) = JSONObject().put("type", "Feature").put("properties", JSONObject()).put("geometry", geometry)
+private fun feature(geometry: JSONObject, properties: JSONObject = JSONObject()) = JSONObject().put("type", "Feature").put("properties", properties).put("geometry", geometry)
 private fun pointFeature(point: TrackPoint?): String {
     if (point == null) return emptyFeatures()
     return feature(JSONObject().put("type", "Point").put("coordinates", JSONArray().put(point.longitude).put(point.latitude))).toString()
 }
-private fun routeFeatures(points: List<TrackPoint>): String {
+/** One short line per stretch between two points, coloured by its speed; consecutive stretches with the same colour are merged. */
+private fun routeFeatures(points: List<TrackPoint>, speeds: List<Double?>?, accentHex: String): String {
     val features = JSONArray()
-    points.groupBy { it.segment }.values.filter { it.size > 1 }.forEach { segment ->
-        val coordinates = JSONArray()
-        segment.forEach { coordinates.put(JSONArray().put(it.longitude).put(it.latitude)) }
-        features.put(feature(JSONObject().put("type", "LineString").put("coordinates", coordinates)))
+    var coordinates = JSONArray(); var color: String? = null
+    fun flush() {
+        if (coordinates.length() > 1) features.put(feature(JSONObject().put("type", "LineString").put("coordinates", coordinates), JSONObject().put("color", color)))
+        coordinates = JSONArray(); color = null
     }
+    for (i in 1 until points.size) {
+        val a = points[i - 1]; val b = points[i]
+        if (a.segment != b.segment) { flush(); continue }
+        val kmh = speeds?.let { TripSpeed.between(it.getOrNull(i - 1), it.getOrNull(i)) }
+        val stretchColor = kmh?.let { TripSpeed.hex(it) } ?: accentHex
+        if (stretchColor != color) {
+            flush(); color = stretchColor
+            coordinates.put(JSONArray().put(a.longitude).put(a.latitude))
+        }
+        coordinates.put(JSONArray().put(b.longitude).put(b.latitude))
+    }
+    flush()
     return JSONObject().put("type", "FeatureCollection").put("features", features).toString()
 }
 

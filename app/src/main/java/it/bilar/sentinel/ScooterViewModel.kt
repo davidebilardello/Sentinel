@@ -214,6 +214,7 @@ class ScooterViewModel(application: Application) : AndroidViewModel(application)
                 mutableState.update { it.copy(connected = connected, connecting = !connected, fresh = event.optBoolean("fresh"),
                     busy = event.optBoolean("busy"), youfsValues = mapped, youfsCanCommand = allowed,
                     youfsStatus = event.optString("reason"), telemetry = youfsTelemetry(mapped)) }
+                if (connected && state.value.fresh) state.value.telemetry?.let { (getApplication<Application>() as SentinelApplication).trips.reportScooterSpeed(it.speedKmh, it.receivedAt) }
                 if (connected) {
                     rememberConnectedScooter()
                     connectionJob?.cancel()
@@ -437,6 +438,7 @@ class ScooterViewModel(application: Application) : AndroidViewModel(application)
         log("RX ${bytes.hex()}")
         val parsed = ScooterProtocol.parse(bytes, SystemClock.elapsedRealtime()) ?: return@onMain
         mutableState.update { it.copy(telemetry = parsed, fresh = true) }
+        (getApplication<Application>() as SentinelApplication).trips.reportScooterSpeed(parsed.speedKmh, parsed.receivedAt)
         freshnessJob?.cancel()
         freshnessJob = viewModelScope.launch {
             delay(ScooterProtocol.FRESH_MS)
